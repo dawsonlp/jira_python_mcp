@@ -7,8 +7,9 @@ name = "jira_python_mcp"
 version = "0.1.0"
 description = "Jira MCP server for exposing Jira functionality through the Model Context Protocol"
 authors = [
-    {name = "Your Name"}
+    {name = "Dawson Packer"}
 ]
+repository = "https://github.com/dawsonlp/jira_python_mcp"
 readme = "readme.md"
 requires-python = ">=3.12"
 classifiers = [

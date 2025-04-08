@@ -27,7 +27,7 @@ There are several ways to integrate the Jira Python MCP server into your project
 
 1. Install the package directly from GitHub:
    ```bash
-   pip install git+https://github.com/yourusername/jira_python_mcp.git
+   pip install git+https://github.com/dawsonlp/jira_python_mcp.git
    ```
 
 2. Create a `jira_mcp.env` file in your project directory with your Jira credentials:
@@ -41,7 +41,7 @@ There are several ways to integrate the Jira Python MCP server into your project
 
 1. Clone the repository to a location of your choice:
    ```bash
-   git clone https://github.com/yourusername/jira_python_mcp.git /path/to/jira_python_mcp
+   git clone https://github.com/dawsonlp/jira_python_mcp.git /path/to/jira_python_mcp
    cd /path/to/jira_python_mcp
    ```
 
@@ -56,7 +56,7 @@ There are several ways to integrate the Jira Python MCP server into your project
 
 1. Add the repository as a Git submodule:
    ```bash
-   git submodule add https://github.com/yourusername/jira_python_mcp.git external/jira_python_mcp
+   git submodule add https://github.com/dawsonlp/jira_python_mcp.git external/jira_python_mcp
    ```
 
 2. Install it in development mode:
@@ -175,7 +175,7 @@ Please create a best-practices Python project that uses the Jira Python MCP serv
 8. Use the Jira Python MCP server as a dependency, configuring it to connect to a Jira instance.
 9. Provide a sample workflow for using the tool to manage the project's own ticket lifecycle.
 
-The Jira Python MCP server implementation is available at https://github.com/yourusername/jira_python_mcp and can be installed via pip. It provides both basic Jira functionality and advanced features like comprehensive ticket summaries.
+The Jira Python MCP server implementation is available at https://github.com/dawsonlp/jira_python_mcp and can be installed via pip. It provides both basic Jira functionality and advanced features like comprehensive ticket summaries.
 
 Please explain your design decisions and provide complete implementation for all files required.
 ```

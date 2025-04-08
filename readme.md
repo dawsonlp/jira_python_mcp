@@ -29,7 +29,7 @@ The server is structured with separate modules for basic and advanced functional
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/jira_python_mcp.git
+   git clone https://github.com/dawsonlp/jira_python_mcp.git
    cd jira_python_mcp
    ```
 
@@ -346,7 +346,7 @@ If your functionality fits neither the base nor advanced modules, you can create
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/jira_python_mcp.git
+git clone https://github.com/dawsonlp/jira_python_mcp.git
 cd jira_python_mcp
 
 # Create a virtual environment
