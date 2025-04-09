@@ -326,8 +326,13 @@ class JiraMcpServer:
 
     async def run(self) -> None:
         """Run the Jira MCP server."""
-        async with stdio_server() as transport:
-            await self.server.connect(*transport)
+        logger.info("Starting Jira MCP server...")
+        async with stdio_server() as (read_stream, write_stream):
+            await self.server.run(
+                read_stream=read_stream,
+                write_stream=write_stream,
+                initialization_options=self.server.create_initialization_options()
+            )
             logger.info("Jira MCP server started")
 
 
