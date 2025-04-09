@@ -31,6 +31,11 @@ pip install --upgrade pip setuptools wheel
 echo "Installing dependencies..."
 pip install -e ".[dev]"
 
+# Install the latest MCP SDK from GitHub (to address potential compatibility issues)
+echo "Installing the latest MCP SDK from GitHub..."
+pip uninstall -y modelcontextprotocol mcp || true
+pip install git+https://github.com/modelcontextprotocol/python-sdk.git
+
 # Create example environment file if it doesn't exist
 if [ ! -f "jira_mcp.env" ] && [ -f "jira_mcp.env.example" ]; then
     echo "Creating jira_mcp.env from jira_mcp.env.example..."

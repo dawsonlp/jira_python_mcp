@@ -9,15 +9,12 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
-from modelcontextprotocol.server import McpServer, McpServerCapabilities, McpServerInfo
-from modelcontextprotocol.server.transport import McpStdioTransport
-from modelcontextprotocol.types import (
-    CallToolRequestSchema,
-    ErrorCode,
-    ListToolsRequestSchema,
-    McpError,
-    ToolContentItem,
-    ToolDescription,
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+from mcp.types import (
+    JSONRPCError,
+    TextContent,
+    Tool,
 )
 
 from jira_python_mcp.base.client import JiraClient
@@ -51,24 +48,107 @@ class JiraMcpServer:
             )
 
         # Set up the MCP server
-        self.server = McpServer(
-            info=McpServerInfo(
-                name="jira-python-mcp",
-                version="0.1.0",
-            ),
-            capabilities=McpServerCapabilities(
-                tools=True,
-                resources=False,  # Not implementing resources for now
-            ),
+        self.server = Server(
+            name="jira-python-mcp",
+            version="0.1.0",
         )
 
         # Load clients on demand
         self._base_client = None
         self._advanced_client = None
 
-        # Register handlers
-        self.server.set_request_handler(ListToolsRequestSchema, self._handle_list_tools)
-        self.server.set_request_handler(CallToolRequestSchema, self._handle_call_tool)
+        # Register handlers using decorators
+        @self.server.list_tools()
+        async def list_tools():
+            logger.info("Handling list_tools request")
+            return [
+                # Basic tools
+                Tool(
+                    name="list_projects",
+                    description="List all projects in Jira",
+                    input_schema={
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": False,
+                    },
+                ),
+                Tool(
+                    name="get_issue",
+                    description="Get basic information about a Jira issue",
+                    input_schema={
+                        "type": "object",
+                        "properties": {
+                            "issue_key": {
+                                "type": "string",
+                                "description": "The issue key (e.g., PROJ-123)",
+                            }
+                        },
+                        "required": ["issue_key"],
+                        "additionalProperties": False,
+                    },
+                ),
+                Tool(
+                    name="get_comments",
+                    description="Get comments for a Jira issue",
+                    input_schema={
+                        "type": "object",
+                        "properties": {
+                            "issue_key": {
+                                "type": "string",
+                                "description": "The issue key (e.g., PROJ-123)",
+                            }
+                        },
+                        "required": ["issue_key"],
+                        "additionalProperties": False,
+                    },
+                ),
+                # Advanced tools
+                Tool(
+                    name="get_ticket_summary",
+                    description="Get comprehensive ticket summary including description, comments, timeline, roles, and status",
+                    input_schema={
+                        "type": "object",
+                        "properties": {
+                            "issue_key": {
+                                "type": "string",
+                                "description": "The issue key (e.g., PROJ-123)",
+                            }
+                        },
+                        "required": ["issue_key"],
+                        "additionalProperties": False,
+                    },
+                ),
+            ]
+
+        @self.server.call_tool()
+        async def call_tool(name: str, arguments: Dict[str, Any]):
+            logger.info(f"Handling call_tool request for tool: {name}")
+
+            try:
+                # Basic tools
+                if name == "list_projects":
+                    return await self._list_projects()
+                elif name == "get_issue":
+                    return await self._get_issue(arguments)
+                elif name == "get_comments":
+                    return await self._get_comments(arguments)
+                # Advanced tools
+                elif name == "get_ticket_summary":
+                    return await self._get_ticket_summary(arguments)
+                
+                raise JSONRPCError(
+                    code=-32601,  # Method not found
+                    message=f"Unknown tool: {name}",
+                )
+            except JSONRPCError:
+                # Re-raise JSONRPCError
+                raise
+            except Exception as e:
+                logger.error(f"Error executing tool {name}: {e}")
+                raise JSONRPCError(
+                    code=-32603,  # Internal error
+                    message=f"Error executing tool {name}: {e}",
+                )
 
         # Set up error handler
         self.server.onerror = self._handle_error
@@ -85,8 +165,9 @@ class JiraMcpServer:
                 self._base_client = JiraClient.from_env()
             except Exception as e:
                 logger.error(f"Failed to create base Jira client: {e}")
-                raise McpError(
-                    ErrorCode.InternalError, f"Failed to create base Jira client: {e}"
+                raise JSONRPCError(
+                    code=-32603,  # Internal error
+                    message=f"Failed to create base Jira client: {e}",
                 )
         return self._base_client
     
@@ -102,8 +183,9 @@ class JiraMcpServer:
                 self._advanced_client = AdvancedJiraClient(self.base_client)
             except Exception as e:
                 logger.error(f"Failed to create advanced Jira client: {e}")
-                raise McpError(
-                    ErrorCode.InternalError, f"Failed to create advanced Jira client: {e}"
+                raise JSONRPCError(
+                    code=-32603,  # Internal error
+                    message=f"Failed to create advanced Jira client: {e}",
                 )
         return self._advanced_client
 
@@ -115,250 +197,138 @@ class JiraMcpServer:
         """
         logger.error(f"MCP Error: {error}")
 
-    async def _handle_list_tools(self, _: Dict[str, Any]) -> Dict[str, List[ToolDescription]]:
-        """Handle the list_tools request.
-
-        Args:
-            _: The request parameters (unused).
-
-        Returns:
-            Dict[str, List[ToolDescription]]: The list of tools provided by this server.
-        """
-        logger.info("Handling list_tools request")
-        return {
-            "tools": [
-                # Basic tools
-                ToolDescription(
-                    name="list_projects",
-                    description="List all projects in Jira",
-                    input_schema={
-                        "type": "object",
-                        "properties": {},
-                        "additionalProperties": False,
-                    },
-                ),
-                ToolDescription(
-                    name="get_issue",
-                    description="Get basic information about a Jira issue",
-                    input_schema={
-                        "type": "object",
-                        "properties": {
-                            "issue_key": {
-                                "type": "string",
-                                "description": "The issue key (e.g., PROJ-123)",
-                            }
-                        },
-                        "required": ["issue_key"],
-                        "additionalProperties": False,
-                    },
-                ),
-                ToolDescription(
-                    name="get_comments",
-                    description="Get comments for a Jira issue",
-                    input_schema={
-                        "type": "object",
-                        "properties": {
-                            "issue_key": {
-                                "type": "string",
-                                "description": "The issue key (e.g., PROJ-123)",
-                            }
-                        },
-                        "required": ["issue_key"],
-                        "additionalProperties": False,
-                    },
-                ),
-                # Advanced tools
-                ToolDescription(
-                    name="get_ticket_summary",
-                    description="Get comprehensive ticket summary including description, comments, timeline, roles, and status",
-                    input_schema={
-                        "type": "object",
-                        "properties": {
-                            "issue_key": {
-                                "type": "string",
-                                "description": "The issue key (e.g., PROJ-123)",
-                            }
-                        },
-                        "required": ["issue_key"],
-                        "additionalProperties": False,
-                    },
-                ),
-            ]
-        }
-
-    async def _handle_call_tool(
-        self, params: Dict[str, Any]
-    ) -> Dict[str, List[ToolContentItem]]:
-        """Handle the call_tool request.
-
-        Args:
-            params: The request parameters.
-
-        Returns:
-            Dict[str, List[ToolContentItem]]: The result of the tool call.
-
-        Raises:
-            McpError: If the tool is not found or an error occurs.
-        """
-        tool_name = params.get("name")
-        logger.info(f"Handling call_tool request for tool: {tool_name}")
-
-        # Basic tools
-        if tool_name == "list_projects":
-            return await self._list_projects()
-        elif tool_name == "get_issue":
-            return await self._get_issue(params)
-        elif tool_name == "get_comments":
-            return await self._get_comments(params)
-        
-        # Advanced tools
-        elif tool_name == "get_ticket_summary":
-            return await self._get_ticket_summary(params)
-        
-        raise McpError(ErrorCode.MethodNotFound, f"Unknown tool: {tool_name}")
-
     # Basic tool implementations
     
-    async def _list_projects(self) -> Dict[str, List[ToolContentItem]]:
+    async def _list_projects(self) -> List[TextContent]:
         """List all projects in Jira.
 
         Returns:
-            Dict[str, List[ToolContentItem]]: The list of projects.
+            List[TextContent]: The list of projects.
         """
         try:
             projects = self.base_client.list_projects()
-            return {
-                "content": [
-                    ToolContentItem(
-                        type="text",
-                        text=json.dumps(projects, indent=2),
-                    )
-                ]
-            }
+            return [
+                TextContent(
+                    text=json.dumps(projects, indent=2),
+                )
+            ]
         except Exception as e:
             logger.error(f"Error listing projects: {e}")
-            return {
-                "content": [
-                    ToolContentItem(
-                        type="text",
-                        text=f"Error listing projects: {e}",
-                    )
-                ],
-                "is_error": True,
-            }
+            return [
+                TextContent(
+                    text=f"Error listing projects: {e}",
+                )
+            ]
     
-    async def _get_issue(self, params: Dict[str, Any]) -> Dict[str, List[ToolContentItem]]:
+    async def _get_issue(self, arguments: Dict[str, Any]) -> List[TextContent]:
         """Get information about a Jira issue.
 
         Args:
-            params: The request parameters.
+            arguments: The tool arguments.
 
         Returns:
-            Dict[str, List[ToolContentItem]]: The issue information.
+            List[TextContent]: The issue information.
         """
         try:
-            issue_key = params.get("arguments", {}).get("issue_key")
+            issue_key = arguments.get("issue_key")
             if not issue_key:
-                raise McpError(ErrorCode.InvalidParams, "Missing issue_key parameter")
+                raise JSONRPCError(
+                    code=-32602,  # Invalid params
+                    message="Missing issue_key parameter",
+                )
             
             issue = self.base_client.get_issue(issue_key)
-            return {
-                "content": [
-                    ToolContentItem(
-                        type="text",
-                        text=json.dumps(issue, indent=2),
-                    )
-                ]
-            }
+            return [
+                TextContent(
+                    text=json.dumps(issue, indent=2),
+                )
+            ]
+        except JSONRPCError:
+            # Re-raise JSONRPCError
+            raise
         except Exception as e:
             logger.error(f"Error getting issue: {e}")
-            return {
-                "content": [
-                    ToolContentItem(
-                        type="text",
-                        text=f"Error getting issue: {e}",
-                    )
-                ],
-                "is_error": True,
-            }
+            return [
+                TextContent(
+                    text=f"Error getting issue: {e}",
+                )
+            ]
     
-    async def _get_comments(self, params: Dict[str, Any]) -> Dict[str, List[ToolContentItem]]:
+    async def _get_comments(self, arguments: Dict[str, Any]) -> List[TextContent]:
         """Get comments for a Jira issue.
 
         Args:
-            params: The request parameters.
+            arguments: The tool arguments.
 
         Returns:
-            Dict[str, List[ToolContentItem]]: The issue comments.
+            List[TextContent]: The issue comments.
         """
         try:
-            issue_key = params.get("arguments", {}).get("issue_key")
+            issue_key = arguments.get("issue_key")
             if not issue_key:
-                raise McpError(ErrorCode.InvalidParams, "Missing issue_key parameter")
+                raise JSONRPCError(
+                    code=-32602,  # Invalid params
+                    message="Missing issue_key parameter",
+                )
             
             comments = self.base_client.get_comments(issue_key)
-            return {
-                "content": [
-                    ToolContentItem(
-                        type="text",
-                        text=json.dumps(comments, indent=2),
-                    )
-                ]
-            }
+            return [
+                TextContent(
+                    text=json.dumps(comments, indent=2),
+                )
+            ]
+        except JSONRPCError:
+            # Re-raise JSONRPCError
+            raise
         except Exception as e:
             logger.error(f"Error getting comments: {e}")
-            return {
-                "content": [
-                    ToolContentItem(
-                        type="text",
-                        text=f"Error getting comments: {e}",
-                    )
-                ],
-                "is_error": True,
-            }
+            return [
+                TextContent(
+                    text=f"Error getting comments: {e}",
+                )
+            ]
     
     # Advanced tool implementations
     
-    async def _get_ticket_summary(self, params: Dict[str, Any]) -> Dict[str, List[ToolContentItem]]:
+    async def _get_ticket_summary(self, arguments: Dict[str, Any]) -> List[TextContent]:
         """Get comprehensive ticket summary.
 
         Args:
-            params: The request parameters.
+            arguments: The tool arguments.
 
         Returns:
-            Dict[str, List[ToolContentItem]]: The ticket summary.
+            List[TextContent]: The ticket summary.
         """
         try:
-            issue_key = params.get("arguments", {}).get("issue_key")
+            issue_key = arguments.get("issue_key")
             if not issue_key:
-                raise McpError(ErrorCode.InvalidParams, "Missing issue_key parameter")
+                raise JSONRPCError(
+                    code=-32602,  # Invalid params
+                    message="Missing issue_key parameter",
+                )
             
             summary = self.advanced_client.get_ticket_summary(issue_key)
-            return {
-                "content": [
-                    ToolContentItem(
-                        type="text",
-                        text=json.dumps(summary, indent=2),
-                    )
-                ]
-            }
+            return [
+                TextContent(
+                    text=json.dumps(summary, indent=2),
+                )
+            ]
+        except JSONRPCError:
+            # Re-raise JSONRPCError
+            raise
         except Exception as e:
             logger.error(f"Error getting ticket summary: {e}")
-            return {
-                "content": [
-                    ToolContentItem(
-                        type="text",
-                        text=f"Error getting ticket summary: {e}",
-                    )
-                ],
-                "is_error": True,
-            }
+            return [
+                TextContent(
+                    text=f"Error getting ticket summary: {e}",
+                )
+            ]
 
     async def run(self) -> None:
         """Run the Jira MCP server."""
-        transport = McpStdioTransport()
-        await self.server.connect(transport)
-        logger.info("Jira MCP server started")
+        async with stdio_server() as transport:
+            await self.server.connect(*transport)
+            logger.info("Jira MCP server started")
 
 
 def main() -> None:

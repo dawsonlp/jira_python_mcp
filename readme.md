@@ -104,6 +104,23 @@ The server provides the following tools:
 
 The Model Context Protocol (MCP) is a standard that allows AI models to access external tools and resources. By implementing the MCP standard, this server enables AI assistants to interact with Jira data in a structured way.
 
+### Development Status
+
+**Important Note:** The MCP standard and its Python SDK are in active development. This project uses the latest available SDK, which may undergo changes. The server implementation may need adjustments as the SDK evolves.
+
+### Known Issues and Troubleshooting
+
+- **MCP Package Issues**: If you encounter `ModuleNotFoundError` or `AttributeError` related to the `mcp` package, try reinstalling the package with:
+  ```bash
+  pip uninstall -y modelcontextprotocol mcp
+  pip install git+https://github.com/modelcontextprotocol/python-sdk.git
+  ```
+
+- **Jira API Configuration**: Ensure your Jira credentials are correctly set in `jira_mcp.env`. The server requires at minimum:
+  - `JIRA_SERVER`: Your Jira instance URL
+  - `JIRA_EMAIL`: Your email for authentication
+  - `JIRA_API_TOKEN`: Your API token
+
 ### Integrating with AI Assistants
 
 To use this MCP server with AI assistants like Claude, you need to:
