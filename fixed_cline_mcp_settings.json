@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "jira": {
+      "command": "/home/dawsonlp/repos/jira_python_mcp/venv/bin/jira-mcp-server",
+      "args": [],
+      "cwd": "/home/dawsonlp/repos/jira_python_mcp",
+      "env": {
+        "JIRA_MCP_ENV_PATH": "/home/dawsonlp/repos/jira_python_mcp/jira_mcp.env"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}

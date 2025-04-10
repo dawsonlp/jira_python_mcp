@@ -17,6 +17,19 @@ from mcp.types import (
     Tool,
 )
 
+# Make sure we explicitly import the Exception class to make it clear it's an exception
+from typing import Union, Dict, Optional
+
+# Custom exception that wraps JSONRPCError to make it catchable in Python 3.12
+class JiraJSONRPCError(Exception):
+    """Exception that wraps a JSONRPCError for proper exception handling in Python 3.12."""
+    
+    def __init__(self, json_rpc_error: JSONRPCError):
+        self.json_rpc_error = json_rpc_error
+        self.code = json_rpc_error.code
+        self.message = json_rpc_error.message
+        super().__init__(f"JSONRPCError: {json_rpc_error.message}")
+
 from jira_python_mcp.base.client import JiraClient
 from jira_python_mcp.advanced.client import AdvancedJiraClient
 
@@ -136,19 +149,21 @@ class JiraMcpServer:
                 elif name == "get_ticket_summary":
                     return await self._get_ticket_summary(arguments)
                 
-                raise JSONRPCError(
+                rpc_error = JSONRPCError(
                     code=-32601,  # Method not found
                     message=f"Unknown tool: {name}",
                 )
-            except JSONRPCError:
-                # Re-raise JSONRPCError
+                raise JiraJSONRPCError(rpc_error)
+            except JiraJSONRPCError:
+                # Re-raise JiraJSONRPCError
                 raise
             except Exception as e:
                 logger.error(f"Error executing tool {name}: {e}")
-                raise JSONRPCError(
+                rpc_error = JSONRPCError(
                     code=-32603,  # Internal error
                     message=f"Error executing tool {name}: {e}",
                 )
+                raise JiraJSONRPCError(rpc_error)
 
         # Set up error handler
         self.server.onerror = self._handle_error
@@ -165,10 +180,11 @@ class JiraMcpServer:
                 self._base_client = JiraClient.from_env()
             except Exception as e:
                 logger.error(f"Failed to create base Jira client: {e}")
-                raise JSONRPCError(
+                rpc_error = JSONRPCError(
                     code=-32603,  # Internal error
                     message=f"Failed to create base Jira client: {e}",
                 )
+                raise JiraJSONRPCError(rpc_error)
         return self._base_client
     
     @property
@@ -183,10 +199,11 @@ class JiraMcpServer:
                 self._advanced_client = AdvancedJiraClient(self.base_client)
             except Exception as e:
                 logger.error(f"Failed to create advanced Jira client: {e}")
-                raise JSONRPCError(
+                rpc_error = JSONRPCError(
                     code=-32603,  # Internal error
                     message=f"Failed to create advanced Jira client: {e}",
                 )
+                raise JiraJSONRPCError(rpc_error)
         return self._advanced_client
 
     def _handle_error(self, error: Exception) -> None:
@@ -196,6 +213,11 @@ class JiraMcpServer:
             error: The error that occurred.
         """
         logger.error(f"MCP Error: {error}")
+        
+        # If it's our custom error, extract the JSONRPCError for proper protocol handling
+        if isinstance(error, JiraJSONRPCError):
+            return error.json_rpc_error
+        return error
 
     # Basic tool implementations
     
@@ -209,6 +231,7 @@ class JiraMcpServer:
             projects = self.base_client.list_projects()
             return [
                 TextContent(
+                    type="text",
                     text=json.dumps(projects, indent=2),
                 )
             ]
@@ -216,6 +239,7 @@ class JiraMcpServer:
             logger.error(f"Error listing projects: {e}")
             return [
                 TextContent(
+                    type="text",
                     text=f"Error listing projects: {e}",
                 )
             ]
@@ -232,24 +256,27 @@ class JiraMcpServer:
         try:
             issue_key = arguments.get("issue_key")
             if not issue_key:
-                raise JSONRPCError(
+                rpc_error = JSONRPCError(
                     code=-32602,  # Invalid params
                     message="Missing issue_key parameter",
                 )
+                raise JiraJSONRPCError(rpc_error)
             
             issue = self.base_client.get_issue(issue_key)
             return [
                 TextContent(
+                    type="text",
                     text=json.dumps(issue, indent=2),
                 )
             ]
-        except JSONRPCError:
-            # Re-raise JSONRPCError
+        except JiraJSONRPCError:
+            # Re-raise JiraJSONRPCError
             raise
         except Exception as e:
             logger.error(f"Error getting issue: {e}")
             return [
                 TextContent(
+                    type="text",
                     text=f"Error getting issue: {e}",
                 )
             ]
@@ -266,24 +293,27 @@ class JiraMcpServer:
         try:
             issue_key = arguments.get("issue_key")
             if not issue_key:
-                raise JSONRPCError(
+                rpc_error = JSONRPCError(
                     code=-32602,  # Invalid params
                     message="Missing issue_key parameter",
                 )
+                raise JiraJSONRPCError(rpc_error)
             
             comments = self.base_client.get_comments(issue_key)
             return [
                 TextContent(
+                    type="text",
                     text=json.dumps(comments, indent=2),
                 )
             ]
-        except JSONRPCError:
-            # Re-raise JSONRPCError
+        except JiraJSONRPCError:
+            # Re-raise JiraJSONRPCError
             raise
         except Exception as e:
             logger.error(f"Error getting comments: {e}")
             return [
                 TextContent(
+                    type="text",
                     text=f"Error getting comments: {e}",
                 )
             ]
@@ -302,24 +332,27 @@ class JiraMcpServer:
         try:
             issue_key = arguments.get("issue_key")
             if not issue_key:
-                raise JSONRPCError(
+                rpc_error = JSONRPCError(
                     code=-32602,  # Invalid params
                     message="Missing issue_key parameter",
                 )
+                raise JiraJSONRPCError(rpc_error)
             
             summary = self.advanced_client.get_ticket_summary(issue_key)
             return [
                 TextContent(
+                    type="text",
                     text=json.dumps(summary, indent=2),
                 )
             ]
-        except JSONRPCError:
-            # Re-raise JSONRPCError
+        except JiraJSONRPCError:
+            # Re-raise JiraJSONRPCError
             raise
         except Exception as e:
             logger.error(f"Error getting ticket summary: {e}")
             return [
                 TextContent(
+                    type="text",
                     text=f"Error getting ticket summary: {e}",
                 )
             ]
