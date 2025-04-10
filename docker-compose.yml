@@ -1,0 +1,9 @@
+services:
+  jira-mcp-daemon:
+    build: .
+    container_name: jira-mcp-daemon  # Fixed name for easy exec access
+    volumes:
+      - ./jira_mcp.env:/app/jira_mcp.env:ro  # Mount env file as read-only
+    # Use a command that keeps the container running
+    command: tail -f /dev/null  # Simple way to keep container running
+    restart: unless-stopped     # Automatically restart if it stops

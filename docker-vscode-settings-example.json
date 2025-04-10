@@ -2,7 +2,7 @@
   "mcpServers": {
     "jira": {
       "command": "docker",
-      "args": ["exec", "-i", "jira-mcp-daemon", "python", "-m", "jira_python_mcp.server"],
+      "args": ["run", "--rm", "-i", "-v", "${HOME}/repos/jira_python_mcp/jira_mcp.env:/app/jira_mcp.env:ro", "jira-mcp-server"],
       "env": {},
       "disabled": false,
       "autoApprove": []

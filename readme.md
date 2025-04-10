@@ -10,6 +10,7 @@ The server is structured with separate modules for basic and advanced functional
 
 - [Prerequisites](#prerequisites)
 - [Setup and Installation](#setup-and-installation)
+- [Docker Setup](#docker-setup)
 - [Usage](#usage)
 - [Available Tools](#available-tools)
 - [MCP Integration](#mcp-integration)
@@ -60,6 +61,118 @@ The server is structured with separate modules for basic and advanced functional
    python -m jira_python_mcp.server
    ```
    You should see a message indicating the server has started.
+
+## Docker Setup
+
+The MCP server can also be run using Docker, which simplifies deployment and ensures consistent execution environments.
+
+### Building the Docker Image
+
+1. Make sure you have Docker installed on your system.
+
+2. Run the provided build script to create the Docker image:
+   ```bash
+   ./build-docker.sh
+   ```
+
+3. Alternatively, you can build the image manually:
+   ```bash
+   docker build -t jira-mcp-server .
+   ```
+
+### Running with Docker
+
+Once the image is built, you can run the server in a container:
+
+```bash
+# Run with the environment file from the current directory
+docker run --rm -i -v $(pwd)/jira_mcp.env:/app/jira_mcp.env:ro jira-mcp-server
+```
+
+You can also use Docker Compose:
+
+```bash
+docker-compose up
+```
+
+### Docker MCP Integration
+
+This repository includes a ready-to-use configuration file for Docker integration with Claude:
+
+```bash
+# Copy the Docker MCP config to your VSCode Claude extension settings
+cp docker_fixed_mcp_config.json ~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json
+```
+
+The configuration file (`docker_fixed_mcp_config.json`) contains:
+
+```json
+{
+  "mcpServers": {
+    "jira": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "-v", "/home/dawsonlp/repos/jira_python_mcp/jira_mcp.env:/app/jira_mcp.env:ro", "jira-mcp-server"],
+      "env": {},
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+### Docker VSCode Integration
+
+To use the containerized server with VSCode:
+
+1. Option 1: Copy the provided configuration file:
+   ```bash
+   cp docker_fixed_mcp_config.json ~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json
+   ```
+
+2. Option 2: Manually edit the Claude VSCode extension settings at:
+   `~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`
+
+   Update the configuration to use Docker:
+   ```json
+   {
+     "mcpServers": {
+       "jira": {
+         "command": "docker",
+         "args": ["run", "--rm", "-i", "-v", "/absolute/path/to/jira_mcp.env:/app/jira_mcp.env:ro", "jira-mcp-server"],
+         "env": {},
+         "disabled": false,
+         "autoApprove": []
+       }
+     }
+   }
+   ```
+
+### Docker Claude Desktop Integration
+
+To use the containerized server with Claude Desktop:
+
+1. Option 1: Modify the provided configuration file and copy it:
+   ```bash
+   cp docker_fixed_mcp_config.json ~/.config/Claude/claude_desktop_config.json
+   ```
+
+2. Option 2: Manually edit the Claude Desktop configuration at:
+   `~/.config/Claude/claude_desktop_config.json` (Linux/macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
+
+   Update the configuration to use Docker:
+   ```json
+   {
+     "mcpServers": {
+       "jira": {
+         "command": "docker",
+         "args": ["run", "--rm", "-i", "-v", "/absolute/path/to/jira_mcp.env:/app/jira_mcp.env:ro", "jira-mcp-server"],
+         "env": {},
+         "disabled": false,
+         "autoApprove": []
+       }
+     }
+   }
+   ```
 
 ## Usage
 
@@ -222,6 +335,9 @@ jira_python_mcp/
 │       ├── __init__.py
 │       └── client.py             # Advanced client (higher-level abstractions)
 ├── build.sh                      # Build script
+├── build-docker.sh               # Docker build script
+├── Dockerfile                    # Docker container definition
+├── docker-compose.yml            # Docker Compose configuration
 ├── jira_mcp.env.example          # Example environment file
 ├── pyproject.toml                # Project configuration
 └── readme.md                     # This file
