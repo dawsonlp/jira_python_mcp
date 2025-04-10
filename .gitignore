@@ -68,6 +68,9 @@ venv.bak/
 *.swp
 *.swo
 
+# Log files
+*.log
+
 # Specifically exclude environment files that might contain credentials
 jira_mcp.env
 *credentials*
